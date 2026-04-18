@@ -50,6 +50,7 @@ type User struct {
 	Setting          string         `json:"setting" gorm:"type:text;column:setting"`
 	Remark           string         `json:"remark,omitempty" gorm:"type:varchar(255)" validate:"max=255"`
 	StripeCustomer   string         `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
+	ExpireTime       int64          `json:"expire_time" gorm:"bigint;default:0"` // 会员到期时间
 }
 
 func (user *User) ToBaseUser() *UserBase {
@@ -945,6 +946,12 @@ func DeltaUpdateUserQuota(id int, delta int) (err error) {
 //	DB.Model(&User{}).Where("role = ?", common.RoleRootUser).Select("email").Find(&email)
 //	return email
 //}
+
+func GetRootUserEmail() string {
+	var user User
+	DB.Where("role = ?", common.RoleRootUser).First(&user)
+	return user.Email
+}
 
 func GetRootUser() (user *User) {
 	DB.Where("role = ?", common.RoleRootUser).First(&user)

@@ -214,6 +214,8 @@ func SetApiRouter(router *gin.Engine) {
 			channelRoute.POST("/:id/key", middleware.RootAuth(), middleware.CriticalRateLimit(), middleware.DisableCache(), middleware.SecureVerificationRequired(), controller.GetChannelKey)
 			channelRoute.GET("/test", controller.TestAllChannels)
 			channelRoute.GET("/test/:id", controller.TestChannel)
+			channelRoute.GET("/health", controller.GetAllChannelHealth)
+			channelRoute.GET("/health/:id", controller.GetChannelHealth)
 			channelRoute.GET("/update_balance", controller.UpdateAllChannelsBalance)
 			channelRoute.GET("/update_balance/:id", controller.UpdateChannelBalance)
 			channelRoute.POST("/", controller.AddChannel)
@@ -374,6 +376,47 @@ func SetApiRouter(router *gin.Engine) {
 			deploymentsRoute.PUT("/:id/name", controller.UpdateDeploymentName)
 			deploymentsRoute.POST("/:id/extend", controller.ExtendDeployment)
 			deploymentsRoute.DELETE("/:id", controller.DeleteDeployment)
+		}
+
+		statsRoute := apiRouter.Group("/stats")
+		statsRoute.Use(middleware.AdminAuth())
+		{
+			statsRoute.GET("/revenue", controller.GetRevenueStats)
+			statsRoute.GET("/usage", controller.GetUsageStats)
+			statsRoute.GET("/user", controller.GetUserStats)
+			statsRoute.GET("/channel", controller.GetChannelStats)
+		}
+
+		couponRoute := apiRouter.Group("/coupon")
+		{
+			couponRoute.GET("/", middleware.AdminAuth(), controller.GetAllCoupons)
+			couponRoute.GET("/enabled", controller.GetEnabledCoupons)
+			couponRoute.GET("/:code", controller.GetCoupon)
+			couponRoute.POST("/", middleware.AdminAuth(), controller.CreateCoupon)
+			couponRoute.PUT("/:id", middleware.AdminAuth(), controller.UpdateCoupon)
+			couponRoute.DELETE("/:id", middleware.AdminAuth(), controller.DeleteCoupon)
+			couponRoute.POST("/use", middleware.UserAuth(), controller.UseCoupon)
+			couponRoute.GET("/my", middleware.UserAuth(), controller.GetUserCoupons)
+		}
+
+		packageRoute := apiRouter.Group("/package")
+		{
+			packageRoute.GET("/", middleware.AdminAuth(), controller.GetAllPackages)
+			packageRoute.GET("/enabled", controller.GetEnabledPackages)
+			packageRoute.GET("/:id", controller.GetPackage)
+			packageRoute.POST("/", middleware.AdminAuth(), controller.CreatePackage)
+			packageRoute.PUT("/:id", middleware.AdminAuth(), controller.UpdatePackage)
+			packageRoute.DELETE("/:id", middleware.AdminAuth(), controller.DeletePackage)
+			packageRoute.GET("/my", middleware.UserAuth(), controller.GetUserPackages)
+			packageRoute.POST("/purchase", middleware.UserAuth(), controller.PurchasePackage)
+		}
+
+		refundRoute := apiRouter.Group("/refund")
+		{
+			refundRoute.GET("/", middleware.AdminAuth(), controller.GetAllRefunds)
+			refundRoute.GET("/my", middleware.UserAuth(), controller.GetUserRefunds)
+			refundRoute.POST("/", middleware.UserAuth(), controller.CreateRefund)
+			refundRoute.POST("/process/:id", middleware.AdminAuth(), controller.ProcessRefund)
 		}
 	}
 }

@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -29,7 +31,8 @@ type Channel struct {
 	Weight             *uint   `json:"weight" gorm:"default:0"`
 	CreatedTime        int64   `json:"created_time" gorm:"bigint"`
 	TestTime           int64   `json:"test_time" gorm:"bigint"`
-	ResponseTime       int     `json:"response_time"` // in milliseconds
+	TestInterval       int     `json:"test_interval" gorm:"default:0"` // 健康检测间隔（秒），0 表示使用全局配置
+	ResponseTime       int     `json:"response_time"`                  // in milliseconds
 	BaseURL            *string `json:"base_url" gorm:"column:base_url;default:''"`
 	Other              string  `json:"other"`
 	Balance            float64 `json:"balance"` // in USD
@@ -52,6 +55,15 @@ type Channel struct {
 	ChannelInfo ChannelInfo `json:"channel_info" gorm:"type:json"`
 
 	OtherSettings string `json:"settings" gorm:"column:settings"` // 其他设置，存储azure版本等不需要检索的信息，详见dto.ChannelOtherSettings
+
+	// 新增字段（来自 one-api 优化）
+	MaxQPS       int     `json:"max_qps" gorm:"type:int;default:0"`         // 渠道级最大 QPS，0 表示不限流
+	Region       string  `json:"region" gorm:"type:varchar(32);default:''"` // 区域：cn/global
+	Zone         string  `json:"zone" gorm:"type:varchar(32);default:''"`   // 可用区
+	SuccessRate  float64 `json:"success_rate" gorm:"default:100"`           // 成功率（百分比）
+	RetryCount   int     `json:"retry_count" gorm:"type:int;default:0"`     // 自定义重试次数，0 表示使用全局配置
+	SystemPrompt *string `json:"system_prompt" gorm:"type:text"`            // 渠道级系统提示
+	Config       string  `json:"config" gorm:"type:text"`                   // JSON 配置字段，存储渠道特定配置
 
 	// cache info
 	Keys []string `json:"-" gorm:"-"`
@@ -1005,4 +1017,213 @@ func CountChannelsGroupByType() (map[int64]int64, error) {
 		counts[r.Type] = r.Count
 	}
 	return counts, nil
+}
+
+type ChannelHealth struct {
+	Id            int   `json:"id" gorm:"primaryKey"`
+	ChannelId     int   `json:"channel_id" gorm:"type:int;uniqueIndex;index"`
+	TotalRequests int64 `json:"total_requests" gorm:"bigint;default:0"`
+	SuccessCount  int64 `json:"success_count" gorm:"bigint;default:0"`
+	FailCount     int64 `json:"fail_count" gorm:"bigint;default:0"`
+	AvgLatency    int   `json:"avg_latency" gorm:"type:int;default:0"`
+	LastTestTime  int64 `json:"last_test_time" gorm:"bigint"`
+	UpdatedTime   int64 `json:"updated_time" gorm:"bigint"`
+}
+
+func GetChannelHealth(channelId int) (*ChannelHealth, error) {
+	var health ChannelHealth
+	err := DB.Where("channel_id = ?", channelId).First(&health).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	return &health, err
+}
+
+func (ch *ChannelHealth) Insert() error {
+	ch.UpdatedTime = time.Now().Unix()
+	return DB.Create(ch).Error
+}
+
+func (ch *ChannelHealth) Update() error {
+	ch.UpdatedTime = time.Now().Unix()
+	return DB.Model(ch).Updates(ch).Error
+}
+
+func UpdateChannelHealth(channelId int, success bool, latency int) {
+	health := &ChannelHealth{ChannelId: channelId}
+	err := DB.Where("channel_id = ?", channelId).First(health).Error
+	if err == gorm.ErrRecordNotFound {
+		health.TotalRequests = 1
+		if success {
+			health.SuccessCount = 1
+		} else {
+			health.FailCount = 1
+		}
+		health.AvgLatency = latency
+		health.LastTestTime = time.Now().Unix()
+		_ = health.Insert()
+		return
+	}
+
+	err = DB.Model(health).Where("channel_id = ?", channelId).Updates(map[string]interface{}{
+		"total_requests": gorm.Expr("total_requests + 1"),
+		"success_count":  gorm.Expr("success_count + ?", success),
+		"fail_count":     gorm.Expr("fail_count + ?", !success),
+		"last_test_time": time.Now().Unix(),
+	}).Error
+
+	if err != nil {
+		return
+	}
+
+	var avgLatency int
+	DB.Model(&ChannelHealth{}).Where("channel_id = ?", channelId).Select("avg_latency").Find(&avgLatency)
+	newAvgLatency := (avgLatency*(int(health.TotalRequests)-1) + latency) / int(health.TotalRequests)
+	DB.Model(&ChannelHealth{}).Where("channel_id = ?", channelId).Update("avg_latency", newAvgLatency)
+}
+
+var channelHealthCache map[int]*ChannelHealth
+var healthCacheLock sync.RWMutex
+var healthCacheLastUpdate int64
+
+const HealthCacheTTL = 300
+
+func InitChannelHealthCache() {
+	channelHealthCache = make(map[int]*ChannelHealth)
+	var healthRecords []*ChannelHealth
+	DB.Find(&healthRecords)
+	for _, h := range healthRecords {
+		channelHealthCache[h.ChannelId] = h
+	}
+	healthCacheLastUpdate = time.Now().Unix()
+	common.SysLog("channel health cache initialized")
+}
+
+func GetChannelHealthFromCache(channelId int) *ChannelHealth {
+	healthCacheLock.RLock()
+	defer healthCacheLock.RUnlock()
+
+	if time.Now().Unix()-healthCacheLastUpdate > HealthCacheTTL {
+		return nil
+	}
+
+	if h, ok := channelHealthCache[channelId]; ok {
+		return h
+	}
+	return nil
+}
+
+func UpdateChannelHealthCache(channelId int, health *ChannelHealth) {
+	healthCacheLock.Lock()
+	defer healthCacheLock.Unlock()
+	channelHealthCache[channelId] = health
+	healthCacheLastUpdate = time.Now().Unix()
+}
+
+func calculateChannelScore(channel *Channel, health *ChannelHealth) float64 {
+	score := float64(100)
+
+	if health != nil && health.TotalRequests > 0 {
+		successRate := float64(health.SuccessCount) / float64(health.TotalRequests)
+		score *= successRate
+
+		if health.AvgLatency > 0 {
+			if health.AvgLatency > 5000 {
+				score *= 0.5
+			} else if health.AvgLatency > 2000 {
+				score *= 0.7
+			} else if health.AvgLatency > 1000 {
+				score *= 0.85
+			}
+		}
+	}
+
+	if channel.Weight != nil && *channel.Weight > 0 {
+		score *= float64(*channel.Weight)
+	}
+
+	return score
+}
+
+func CacheGetBestChannel(group string, modelName string, retry int) (*Channel, error) {
+	if !common.MemoryCacheEnabled {
+		return GetRandomSatisfiedChannel(group, modelName, retry)
+	}
+
+	channelSyncLock.RLock()
+	defer channelSyncLock.RUnlock()
+	channelIds := group2model2channels[group][modelName]
+	if len(channelIds) == 0 {
+		return nil, errors.New("channel not found")
+	}
+
+	filteredChannels := make([]*Channel, 0)
+	for _, channelId := range channelIds {
+		if ch, ok := channelsIDM[channelId]; ok && ch.Status == common.ChannelStatusEnabled {
+			filteredChannels = append(filteredChannels, ch)
+		}
+	}
+
+	if len(filteredChannels) == 0 {
+		return nil, errors.New("no enabled channel found")
+	}
+
+	channelScores := make([]struct {
+		channel *Channel
+		score   float64
+	}, 0)
+
+	for _, ch := range filteredChannels {
+		health := GetChannelHealthFromCache(ch.Id)
+		score := calculateChannelScore(ch, health)
+		channelScores = append(channelScores, struct {
+			channel *Channel
+			score   float64
+		}{channel: ch, score: score})
+	}
+
+	sort.Slice(channelScores, func(i, j int) bool {
+		return channelScores[i].score > channelScores[j].score
+	})
+
+	if len(channelScores) == 0 {
+		return nil, errors.New("no channel with valid score")
+	}
+
+	topCount := 3
+	if topCount > len(channelScores) {
+		topCount = len(channelScores)
+	}
+
+	totalScore := 0.0
+	for i := 0; i < topCount; i++ {
+		totalScore += channelScores[i].score
+	}
+
+	if totalScore <= 0 {
+		return channelScores[0].channel, nil
+	}
+
+	r := rand.Float64() * totalScore
+	cumulative := 0.0
+	for i := 0; i < topCount; i++ {
+		cumulative += channelScores[i].score
+		if r <= cumulative {
+			return channelScores[i].channel, nil
+		}
+	}
+
+	return channelScores[0].channel, nil
+}
+
+func StartHealthCacheSync(frequency int) {
+	common.SysLog(fmt.Sprintf("health cache sync started with frequency %d seconds", frequency))
+	for {
+		time.Sleep(time.Duration(frequency) * time.Second)
+		InitChannelHealthCache()
+	}
+}
+
+func UpdateChannelStatusById(channelId int, status int) {
+	DB.Model(&Channel{}).Where("id = ?", channelId).Update("status", status)
 }

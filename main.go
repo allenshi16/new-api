@@ -18,6 +18,7 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/monitor"
 	"github.com/QuantumNous/new-api/oauth"
 	"github.com/QuantumNous/new-api/relay"
 	"github.com/QuantumNous/new-api/router"
@@ -105,6 +106,39 @@ func main() {
 	}
 
 	go controller.AutomaticallyTestChannels()
+
+	// 启动监控任务
+	if common.IsMasterNode {
+		// 渠道健康检测（每5分钟）
+		if os.Getenv("CHANNEL_HEALTH_FREQUENCY") != "" {
+			frequency, err := strconv.Atoi(os.Getenv("CHANNEL_HEALTH_FREQUENCY"))
+			if err != nil {
+				common.FatalLog("failed to parse CHANNEL_HEALTH_FREQUENCY: " + err.Error())
+			}
+			go monitor.StartChannelHealthMonitor(frequency)
+		} else {
+			go monitor.StartChannelHealthMonitor(300)
+		}
+
+		// 指标追踪系统
+		monitor.InitMetricMonitor()
+
+		// 健康缓存同步
+		if common.MemoryCacheEnabled {
+			go model.StartHealthCacheSync(common.SyncFrequency)
+		}
+
+		// 用户到期/额度预警（每1小时）
+		if os.Getenv("EXPIRATION_MONITOR_FREQUENCY") != "" {
+			frequency, err := strconv.Atoi(os.Getenv("EXPIRATION_MONITOR_FREQUENCY"))
+			if err != nil {
+				common.FatalLog("failed to parse EXPIRATION_MONITOR_FREQUENCY: " + err.Error())
+			}
+			go monitor.StartExpirationMonitor(frequency)
+		} else {
+			go monitor.StartExpirationMonitor(3600)
+		}
+	}
 
 	// Codex credential auto-refresh check every 10 minutes, refresh when expires within 1 day
 	service.StartCodexCredentialAutoRefreshTask()

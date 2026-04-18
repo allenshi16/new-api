@@ -124,6 +124,16 @@ func InitEnv() {
 	SearchRateLimitEnable = GetEnvOrDefaultBool("SEARCH_RATE_LIMIT_ENABLE", true)
 	SearchRateLimitNum = GetEnvOrDefault("SEARCH_RATE_LIMIT", 10)
 	SearchRateLimitDuration = int64(GetEnvOrDefault("SEARCH_RATE_LIMIT_DURATION", 60))
+
+	EnableMetric = GetEnvOrDefaultBool("ENABLE_METRIC", false)
+	MetricQueueSize = GetEnvOrDefault("METRIC_QUEUE_SIZE", 10)
+	MetricSuccessChanSize = GetEnvOrDefault("METRIC_SUCCESS_CHAN_SIZE", 100)
+	MetricFailChanSize = GetEnvOrDefault("METRIC_FAIL_CHAN_SIZE", 100)
+	MetricSuccessRateThreshold = GetEnvOrDefaultFloat("METRIC_SUCCESS_RATE_THRESHOLD", 0.8)
+
+	AutomaticDisableChannelEnabled = GetEnvOrDefaultBool("AUTOMATIC_DISABLE_CHANNEL_ENABLED", false)
+	AutomaticEnableChannelEnabled = GetEnvOrDefaultBool("AUTOMATIC_ENABLE_CHANNEL_ENABLED", false)
+
 	initConstantEnv()
 }
 

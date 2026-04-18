@@ -10,6 +10,30 @@ import (
 	"time"
 )
 
+func EmailTemplate(subject string, content string) string {
+	return fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>%s</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+	<div style="background-color: #f9f9f9; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+		<h2 style="color: #2c3e50; margin-bottom: 15px;">%s</h2>
+		<div style="background-color: #fff; border-radius: 4px; padding: 15px;">
+			%s
+		</div>
+	</div>
+	<div style="text-align: center; color: #999; font-size: 12px; margin-top: 20px;">
+		<p>此邮件由系统自动发送，请勿直接回复。</p>
+		<p>%s</p>
+	</div>
+</body>
+</html>
+`, subject, subject, content, SystemName)
+}
+
 func generateMessageID() (string, error) {
 	split := strings.Split(SMTPFrom, "@")
 	if len(split) < 2 {

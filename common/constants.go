@@ -112,6 +112,12 @@ var PreConsumedQuota = 500
 
 var RetryTimes = 0
 
+var EnableMetric = false
+var MetricQueueSize = 10
+var MetricSuccessRateThreshold = 0.8
+var MetricSuccessChanSize = 100
+var MetricFailChanSize = 100
+
 //var RootUserEmail = ""
 
 var IsMasterNode bool

@@ -157,6 +157,16 @@ func Distribute() func(c *gin.Context) {
 		}
 		common.SetContextKey(c, constant.ContextKeyRequestStartTime, time.Now())
 		SetupContextForSelectedChannel(c, channel, modelRequest.Model)
+
+		// 渠道级 QPS 限流检查
+		if channel != nil && channel.MaxQPS > 0 {
+			limiter := GetChannelRateLimiter(channel.Id, channel.MaxQPS)
+			if !limiter.Allow() {
+				abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("渠道 #%d 已达到 QPS 限制 (%d QPS)", channel.Id, channel.MaxQPS))
+				return
+			}
+		}
+
 		c.Next()
 		if channel != nil && c.Writer != nil && c.Writer.Status() < http.StatusBadRequest {
 			service.RecordChannelAffinity(c, channel.Id)
