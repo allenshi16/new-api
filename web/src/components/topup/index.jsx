@@ -78,6 +78,9 @@ const TopUp = () => {
   const [enableWaffoPancakeTopUp, setEnableWaffoPancakeTopUp] = useState(false);
   const [waffoPancakeMinTopUp, setWaffoPancakeMinTopUp] = useState(1);
 
+  const [enableWeChatPayTopUp, setEnableWeChatPayTopUp] = useState(false);
+  const [wechatPayMinTopUp, setWeChatPayMinTopUp] = useState(1);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [open, setOpen] = useState(false);
   const [payWay, setPayWay] = useState('');
@@ -144,6 +147,9 @@ const TopUp = () => {
     if (typeof payment === 'string' && payment.startsWith('waffo:')) {
       return getWaffoAmount(value);
     }
+    if (payment === 'wechatpay') {
+      return getWeChatPayAmount(value);
+    }
     return getAmount(value);
   };
 
@@ -207,6 +213,11 @@ const TopUp = () => {
         showError(t('管理员未开启 Waffo 充值！'));
         return;
       }
+    } else if (payment === 'wechatpay') {
+      if (!enableWeChatPayTopUp) {
+        showError(t('管理员未开启微信支付充值！'));
+        return;
+      }
     } else {
       if (!enableOnlineTopUp) {
         showError(t('管理员未开启在线充值！'));
@@ -233,6 +244,17 @@ const TopUp = () => {
   };
 
   const onlineTopUp = async () => {
+    if (payWay === 'wechatpay') {
+      setConfirmLoading(true);
+      try {
+        await wechatPayTopUp();
+      } finally {
+        setOpen(false);
+        setConfirmLoading(false);
+      }
+      return;
+    }
+
     if (payWay === 'waffo_pancake') {
       setConfirmLoading(true);
       try {
@@ -501,6 +523,77 @@ const TopUp = () => {
     }
   };
 
+  const wechatPayTopUp = async () => {
+    if (topUpCount < wechatPayMinTopUp) {
+      showError(t('充值数量不能小于') + wechatPayMinTopUp);
+      return;
+    }
+    setPaymentLoading(true);
+    try {
+      const res = await API.post('/api/user/wechatpay/pay', {
+        amount: parseInt(topUpCount),
+      });
+      if (res !== undefined) {
+        const { message, data } = res.data;
+        if (message === 'success' && data?.code_url) {
+          Modal.info({
+            title: t('微信支付'),
+            content: (
+              <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                <p>{t('请使用微信扫描下方二维码完成支付')}</p>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(data.code_url)}`}
+                  alt="WeChat Pay QR Code"
+                  style={{ margin: '16px auto', display: 'block' }}
+                />
+                <p style={{ fontSize: 12, color: '#999' }}>
+                  {t('订单号')}: {data.order_id}
+                </p>
+              </div>
+            ),
+            centered: true,
+            width: 400,
+          });
+        } else {
+          showError(data || t('支付请求失败'));
+        }
+      } else {
+        showError(res);
+      }
+    } catch (e) {
+      showError(t('支付请求失败'));
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const getWeChatPayAmount = async (value) => {
+    if (value === undefined) {
+      value = topUpCount;
+    }
+    setAmountLoading(true);
+    try {
+      const res = await API.post('/api/user/wechatpay/amount', {
+        amount: parseInt(value),
+      });
+      if (res !== undefined) {
+        const { message, data } = res.data;
+        if (message === 'success') {
+          setAmount(parseFloat(data));
+        } else {
+          setAmount(0);
+          Toast.error({ content: '错误：' + data, id: 'getAmount' });
+        }
+      } else {
+        showError(res);
+      }
+    } catch (err) {
+      // amount fetch failed silently
+    } finally {
+      setAmountLoading(false);
+    }
+  };
+
   const processCreemCallback = (data) => {
     // 与 Stripe 保持一致的实现方式
     window.open(data.checkout_url, '_blank');
@@ -656,6 +749,8 @@ const TopUp = () => {
           setWaffoMinTopUp(data.waffo_min_topup || 1);
           setEnableWaffoPancakeTopUp(enableWaffoPancakeTopUp);
           setWaffoPancakeMinTopUp(data.waffo_pancake_min_topup || 1);
+          setEnableWeChatPayTopUp(data.enable_wechatpay_topup || false);
+          setWeChatPayMinTopUp(data.wechatpay_min_topup || 1);
           setMinTopUp(minTopUpValue);
           setTopUpCount(minTopUpValue);
 
