@@ -3,7 +3,9 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/i18n"
@@ -33,6 +35,9 @@ func GenerateOAuthCode(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	common.SysLog(fmt.Sprintf("[OAuth DEBUG] GenerateOAuthCode: state=%q saved_ok=true session_secret_len=%d secure=%v",
+		state, len(common.SessionSecret),
+		strings.HasPrefix(os.Getenv("SERVER_ADDRESS"), "https://")))
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
@@ -56,7 +61,13 @@ func HandleOAuth(c *gin.Context) {
 
 	// 1. Validate state (CSRF protection)
 	state := c.Query("state")
-	if state == "" || session.Get("oauth_state") == nil || state != session.Get("oauth_state").(string) {
+	storedState := session.Get("oauth_state")
+	cookieHeader := c.Request.Header.Get("Cookie")
+	common.SysLog(fmt.Sprintf("[OAuth DEBUG] provider=%s state_param=%q stored_state=%v cookie_present=%v session_id=%v",
+		providerName, state, storedState,
+		len(cookieHeader) > 0,
+		session.Get("id")))
+	if state == "" || storedState == nil || state != storedState.(string) {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
 			"message": i18n.T(c, i18n.MsgOAuthStateInvalid),
