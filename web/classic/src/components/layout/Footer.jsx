@@ -56,6 +56,7 @@ const FooterBar = () => {
               />
             </div>
 
+            {/* 
             <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 w-full'>
               <div className='text-left'>
                 <p className='!text-semi-color-text-0 font-semibold mb-5'>
@@ -185,6 +186,7 @@ const FooterBar = () => {
                 </div>
               </div>
             </div>
+            */}
           </div>
         )}
 
@@ -195,6 +197,7 @@ const FooterBar = () => {
             </Typography.Text>
           </div>
 
+          {/*}
           <div className='text-sm'>
             <span className='!text-semi-color-text-1'>
               {t('设计与开发由')}{' '}
@@ -208,6 +211,7 @@ const FooterBar = () => {
               New API
             </a>
           </div>
+          */}
         </div>
       </footer>
     ),
@@ -227,6 +231,7 @@ const FooterBar = () => {
               className='custom-footer na-cb6feafeb3990c78 text-sm !text-semi-color-text-1'
               dangerouslySetInnerHTML={{ __html: footer }}
             ></div>
+            {/*
             <div className='text-sm flex-shrink-0'>
               <span className='!text-semi-color-text-1'>
                 {t('设计与开发由')}{' '}
@@ -240,6 +245,7 @@ const FooterBar = () => {
                 New API
               </a>
             </div>
+            */}
           </div>
         </footer>
       ) : (
