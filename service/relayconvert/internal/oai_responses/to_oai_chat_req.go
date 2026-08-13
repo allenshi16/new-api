@@ -188,6 +188,10 @@ func responsesInputItemToChatMessages(item map[string]any, messages []dto.Messag
 	if role == "" {
 		role = "user"
 	}
+	if role == "developer" {
+		// OpenAI chat completions upstreams only accept system/user/assistant/tool.
+		role = "system"
+	}
 	content, err := responsesInputContentToChatContent(item["content"])
 	if err != nil {
 		return nil, err
@@ -343,14 +347,9 @@ func responsesRequestToolsToChat(raw json.RawMessage) ([]dto.ToolCallRequest, er
 			continue
 		}
 
-		rawTool, err := common.Marshal(tool)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, dto.ToolCallRequest{
-			Type:   toolType,
-			Custom: rawTool,
-		})
+		// Responses-only built-in tools (web_search_preview, web_search, etc.)
+		// cannot be expressed as OpenAI chat completions function tools and are
+		// rejected by chat-only upstreams. Drop them so the request succeeds.
 	}
 	return out, nil
 }

@@ -118,12 +118,11 @@ func FinalizeChatCompletionsStreamToResponses(state *ChatToResponsesStreamState)
 	events := state.doneDeltaEvents()
 	state.finalized = true
 	resp := state.finalResponse()
-	eventType := responsesEventCompleted
-	if state.status == "incomplete" {
-		eventType = responsesEventIncomplete
-	}
-	events = append(events, responsesStreamEvent(eventType, dto.ResponsesStreamResponse{
-		Type:     eventType,
+	// Always emit response.completed as the terminal event. OpenAI-compatible
+	// clients (e.g. Codex) treat a response.incomplete event type as an error;
+	// the payload's status/incomplete_details already convey the incomplete state.
+	events = append(events, responsesStreamEvent(responsesEventCompleted, dto.ResponsesStreamResponse{
+		Type:     responsesEventCompleted,
 		Response: resp,
 	}))
 	return events

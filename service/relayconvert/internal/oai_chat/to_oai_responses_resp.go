@@ -16,7 +16,6 @@ const (
 
 	responsesEventCreated                  = "response.created"
 	responsesEventCompleted                = "response.completed"
-	responsesEventIncomplete               = "response.incomplete"
 	responsesEventOutputTextDelta          = "response.output_text.delta"
 	responsesEventOutputItemAdded          = "response.output_item.added"
 	responsesEventOutputItemDone           = "response.output_item.done"

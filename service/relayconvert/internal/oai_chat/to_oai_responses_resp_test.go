@@ -138,3 +138,30 @@ func mustResponsesEventsFromChatChunk(t *testing.T, state *ChatToResponsesStream
 	require.NoError(t, err)
 	return events
 }
+
+func TestChatCompletionsStreamToResponsesFinalizesIncompleteAsCompletedEvent(t *testing.T) {
+	state := NewChatToResponsesStreamState("resp_1", "gpt-test")
+	state.Created = 123
+
+	var events []ChatToResponsesStreamEvent
+	events = append(events, mustResponsesEventsFromChatChunk(t, state, &dto.ChatCompletionsStreamResponse{
+		Choices: []dto.ChatCompletionsStreamResponseChoice{
+			{Index: 0, Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: lo.ToPtr("partial")}},
+		},
+	})...)
+	finishReason := "length"
+	events = append(events, mustResponsesEventsFromChatChunk(t, state, &dto.ChatCompletionsStreamResponse{
+		Choices: []dto.ChatCompletionsStreamResponseChoice{
+			{Index: 0, FinishReason: &finishReason},
+		},
+	})...)
+	events = append(events, FinalizeChatCompletionsStreamToResponses(state)...)
+
+	require.NotEmpty(t, events)
+	last := events[len(events)-1]
+	assert.Equal(t, responsesEventCompleted, last.Type)
+	require.NotNil(t, last.Payload.Response)
+	assert.Equal(t, `"incomplete"`, string(last.Payload.Response.Status))
+	require.NotNil(t, last.Payload.Response.IncompleteDetails)
+	assert.Equal(t, responsesIncompleteReasonMaxTokens, last.Payload.Response.IncompleteDetails.Reason)
+}
