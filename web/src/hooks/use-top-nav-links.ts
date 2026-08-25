@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { agentPlatformLoginUrl } from '@/config/agent-platform'
 import { useStatus } from '@/hooks/use-status'
 import { parseHeaderNavModulesFromStatus } from '@/lib/nav-modules'
 import { useAuthStore } from '@/stores/auth-store'
@@ -98,6 +99,15 @@ export function useTopNavLinks(): TopNavLink[] {
   // About
   if (modules?.about !== false) {
     links.push({ title: t('About'), href: '/about' })
+  }
+
+  // Agent platform SSO (external, only for signed-in users)
+  if (isAuthed && auth?.accessToken) {
+    links.push({
+      title: t('Agent Platform'),
+      href: agentPlatformLoginUrl(auth.accessToken),
+      external: true,
+    })
   }
 
   return links

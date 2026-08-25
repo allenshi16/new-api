@@ -123,6 +123,7 @@
     "Accept Unpriced Models": "Принимать модели без цены",
     "Accepts a JSON array of model identifiers that support the Imagine API.": "Принимает JSON-массив идентификаторов моделей, поддерживающих Imagine API.",
     "Accepts comma-separated status codes and inclusive ranges.": "Принимает коды статуса, разделенные запятыми, и включающие диапазоны.",
+    "Agent Platform": "Платформа агентов",
     "Access a vast selection of models via a standard, unified API protocol. Power AI applications, manage digital assets, and connect the Future.": "Получите доступ к огромному выбору моделей через стандартный, единый протокол API. Развивайте приложения ИИ, управляйте цифровыми активами и соединяйте будущее.",
     "Access Denied Message": "Сообщение об отказе в доступе",
     "Access Forbidden": "Доступ запрещен",

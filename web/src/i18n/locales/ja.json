@@ -123,6 +123,7 @@
     "Accept Unpriced Models": "価格設定されていないモデルを許可",
     "Accepts a JSON array of model identifiers that support the Imagine API.": "Imagine APIをサポートするモデル識別子のJSON配列を受け入れます。",
     "Accepts comma-separated status codes and inclusive ranges.": "カンマ区切りのステータスコードと包含範囲を受け入れます。",
+    "Agent Platform": "エージェントプラットフォーム",
     "Access a vast selection of models via a standard, unified API protocol. Power AI applications, manage digital assets, and connect the Future.": "標準的で統一されたAPIプロトコルを介して、膨大なモデルにアクセス。AIアプリケーションを強化し、デジタル資産を管理し、未来へと繋げます。",
     "Access Denied Message": "アクセス拒否メッセージ",
     "Access Forbidden": "アクセス禁止",
