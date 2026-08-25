@@ -167,7 +167,7 @@ export function formatPrice(
   const price = priceInUSD / TOKEN_UNIT_DIVISORS[tokenUnit]
   return formatCurrencyFromUSD(price, {
     digitsLarge: 4,
-    digitsSmall: 6,
+    digitsSmall: 4,
     abbreviate: false,
   })
 }
@@ -202,7 +202,7 @@ export function formatGroupPrice(
   const price = priceInUSD / TOKEN_UNIT_DIVISORS[tokenUnit]
   return formatCurrencyFromUSD(price, {
     digitsLarge: 4,
-    digitsSmall: 6,
+    digitsSmall: 4,
     abbreviate: false,
   })
 }

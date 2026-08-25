@@ -102,7 +102,7 @@ export function formatDynamicUnitPrice(
 
   return formatBillingCurrencyFromUSD(displayPrice, {
     digitsLarge: 4,
-    digitsSmall: 6,
+    digitsSmall: 4,
     abbreviate: false,
   })
 }
