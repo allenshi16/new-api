@@ -21,11 +21,13 @@ import { useTranslation } from 'react-i18next'
 
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getUserQuotaDates } from '@/features/dashboard/api'
+import {
+  getUserLogStats,
+  getUserQuotaDates,
+} from '@/features/dashboard/api'
 import { useModelStatCardsConfig } from '@/features/dashboard/hooks/use-dashboard-config'
 import {
   buildQueryParams,
-  calculateDashboardStats,
   getDefaultDays,
 } from '@/features/dashboard/lib'
 import type {
@@ -91,11 +93,25 @@ export function LogStatCards(props: LogStatCardsProps) {
     const timeDiff = (timeRange.end_timestamp - timeRange.start_timestamp) / 60
     setTimeRangeMinutes(timeDiff)
 
-    void getUserQuotaDates(buildQueryParams(timeRange, filters), isAdmin)
-      .then((res) => {
+    const statParams = {
+      start_timestamp: timeRange.start_timestamp,
+      end_timestamp: timeRange.end_timestamp,
+      ...(isAdmin && filters?.username ? { username: filters.username } : {}),
+    }
+
+    void Promise.all([
+      getUserQuotaDates(buildQueryParams(timeRange, filters), isAdmin),
+      getUserLogStats(statParams, isAdmin),
+    ])
+      .then(([quotaRes, statRes]) => {
         if (abortController.signal.aborted) return
-        const data = res?.data || []
-        setStats(calculateDashboardStats(data))
+        const data = quotaRes?.data || []
+        const stat = statRes?.data
+        setStats({
+          totalQuota: stat?.quota ?? 0,
+          totalCount: stat?.count ?? 0,
+          totalTokens: stat?.tokens ?? 0,
+        })
         onDataUpdate?.(data, false)
       })
       .catch(() => {

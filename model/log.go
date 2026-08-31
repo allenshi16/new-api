@@ -610,50 +610,50 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 }
 
 type Stat struct {
-	Quota int `json:"quota"`
-	Rpm   int `json:"rpm"`
-	Tpm   int `json:"tpm"`
+	Quota  int `json:"quota"`
+	Rpm    int `json:"rpm"`
+	Tpm    int `json:"tpm"`
+	Count  int `json:"count"`
+	Tokens int `json:"tokens"`
 }
 
 func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string) (stat Stat, err error) {
-	tx := LOG_DB.Table("logs").Select("COALESCE(sum(quota), 0) quota")
+	tx := LOG_DB.Table("logs").Select("COALESCE(sum(quota), 0) quota, count(*) count, COALESCE(sum(prompt_tokens), 0) + COALESCE(sum(completion_tokens), 0) tokens")
 
 	// 为rpm和tpm创建单独的查询
 	rpmTpmQuery := LOG_DB.Table("logs").Select("count(*) rpm, COALESCE(sum(prompt_tokens), 0) + COALESCE(sum(completion_tokens), 0) tpm")
 
-	if tx, err = applyExplicitLogTextFilter(tx, "username", username); err != nil {
-		return stat, err
-	}
-	if rpmTpmQuery, err = applyExplicitLogTextFilter(rpmTpmQuery, "username", username); err != nil {
-		return stat, err
-	}
-	if tokenName != "" {
-		tx = tx.Where("token_name = ?", tokenName)
-		rpmTpmQuery = rpmTpmQuery.Where("token_name = ?", tokenName)
-	}
-	if startTimestamp != 0 {
-		tx = tx.Where("created_at >= ?", startTimestamp)
-	}
-	if endTimestamp != 0 {
-		tx = tx.Where("created_at <= ?", endTimestamp)
-	}
-	if tx, err = applyExplicitLogTextFilter(tx, "model_name", modelName); err != nil {
-		return stat, err
-	}
-	if rpmTpmQuery, err = applyExplicitLogTextFilter(rpmTpmQuery, "model_name", modelName); err != nil {
-		return stat, err
-	}
-	if channel != 0 {
-		tx = tx.Where("channel_id = ?", channel)
-		rpmTpmQuery = rpmTpmQuery.Where("channel_id = ?", channel)
-	}
-	if group != "" {
-		tx = tx.Where(logGroupCol+" = ?", group)
-		rpmTpmQuery = rpmTpmQuery.Where(logGroupCol+" = ?", group)
+	applyCommonFilters := func(query *gorm.DB) (*gorm.DB, error) {
+		if query, err = applyExplicitLogTextFilter(query, "username", username); err != nil {
+			return nil, err
+		}
+		if tokenName != "" {
+			query = query.Where("token_name = ?", tokenName)
+		}
+		if startTimestamp != 0 {
+			query = query.Where("created_at >= ?", startTimestamp)
+		}
+		if endTimestamp != 0 {
+			query = query.Where("created_at <= ?", endTimestamp)
+		}
+		if query, err = applyExplicitLogTextFilter(query, "model_name", modelName); err != nil {
+			return nil, err
+		}
+		if channel != 0 {
+			query = query.Where("channel_id = ?", channel)
+		}
+		if group != "" {
+			query = query.Where(logGroupCol+" = ?", group)
+		}
+		return query.Where("type = ?", LogTypeConsume), nil
 	}
 
-	tx = tx.Where("type = ?", LogTypeConsume)
-	rpmTpmQuery = rpmTpmQuery.Where("type = ?", LogTypeConsume)
+	if tx, err = applyCommonFilters(tx); err != nil {
+		return stat, err
+	}
+	if rpmTpmQuery, err = applyCommonFilters(rpmTpmQuery); err != nil {
+		return stat, err
+	}
 
 	// 只统计最近60秒的rpm和tpm
 	rpmTpmQuery = rpmTpmQuery.Where("created_at >= ?", time.Now().Add(-60*time.Second).Unix())

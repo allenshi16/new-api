@@ -51,6 +51,30 @@ export async function getUserQuotaDates(
   return res.data
 }
 
+// Consumption stats from the logs table (closed interval, per-request).
+// Mirrors the data source used by the usage-logs page so totals agree.
+export async function getUserLogStats(
+  params: {
+    start_timestamp: number
+    end_timestamp: number
+    username?: string
+  },
+  isAdmin = false
+) {
+  const endpoint = isAdmin ? '/api/log/stat' : '/api/log/self/stat'
+  const res = await api.get<{
+    success: boolean
+    data?: {
+      quota?: number
+      rpm?: number
+      tpm?: number
+      count?: number
+      tokens?: number
+    }
+  }>(endpoint, { params })
+  return res.data
+}
+
 // ----------------------------------------------------------------------------
 // System Monitoring
 // ----------------------------------------------------------------------------
