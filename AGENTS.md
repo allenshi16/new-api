@@ -64,6 +64,8 @@ web/           — Frontend (React 19, Rsbuild, Base UI, Tailwind)
 
 ### Backend Rules
 
+**Channel models and `abilities` sync:** When adding models to a channel by writing `channels.models` directly (e.g. SQL/Python scripts outside the channel-save API), you MUST also keep the `abilities` table in sync. The pricing model-market page (`/api/pricing` -> `model.GetPricing()` -> `GetAllEnableAbilityWithChannels()`) reads from the `abilities` table, NOT from `channels.models`; the channel test-connection page reads `channels.models`. Editing only `channels.models` will make new models invisible on the model-market page. Rebuild via `channel.UpdateAbilities` (deletes + re-inserts abilities from `channels.models` x `channels.group` for the channel), or equivalently delete the channel's `abilities` rows and re-insert one row per (group, model, channel_id) with `enabled = (channels.status == enabled)`, `priority`, `weight`, `tag`. Prefer saving the channel through the normal update API when possible so this happens automatically.
+
 **JSON package:** All JSON marshal/unmarshal operations MUST use the wrapper functions in `common/json.go`:
 
 - `common.Marshal(v any) ([]byte, error)`
