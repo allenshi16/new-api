@@ -29,7 +29,7 @@ import {
   getDynamicDisplayGroupRatio,
   getDynamicPricingSummary,
 } from '../lib/dynamic-price'
-import { parseTags } from '../lib/filters'
+import { isNewArrivalTag, parseTags } from '../lib/filters'
 import { isTokenBasedModel } from '../lib/model-helpers'
 import { formatPrice, formatRequestPrice } from '../lib/price'
 import type { PricingModel, TokenUnit } from '../types'
@@ -258,11 +258,21 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
         <ModelPerfBadge perf={props.perf} className='row-span-2 self-start' />
 
         <div className='flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 sm:gap-x-3 sm:gap-y-1'>
-          {bottomTags.map((item) => (
-            <span key={item} className='text-muted-foreground/70 text-xs'>
-              {item}
-            </span>
-          ))}
+          {bottomTags.map((item) => {
+            const isNew = isNewArrivalTag(item)
+            return (
+              <span
+                key={item}
+                className={
+                  isNew
+                    ? 'bg-success rounded-full px-1.5 py-0.5 text-[11px] font-semibold text-success-foreground'
+                    : 'text-muted-foreground/70 text-xs'
+                }
+              >
+                {item}
+              </span>
+            )
+          })}
           <span className='text-muted-foreground/50 text-xs'>
             {tokenUnitLabel}
           </span>

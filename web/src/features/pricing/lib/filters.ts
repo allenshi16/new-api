@@ -169,6 +169,14 @@ export function parseTags(tagsString?: string): string[] {
 }
 
 /**
+ * Whether a tag represents a newly launched model that should be highlighted
+ * in the pricing UI (e.g. `上新` / `new`).
+ */
+export function isNewArrivalTag(tag: string): boolean {
+  return tag === '上新' || tag.toLowerCase() === 'new'
+}
+
+/**
  * Extract all unique tags from models
  */
 export function extractAllTags(models: PricingModel[]): string[] {
@@ -183,7 +191,7 @@ export function extractAllTags(models: PricingModel[]): string[] {
     }
   })
 
-  return Array.from(tagSet).sort((a, b) => a.localeCompare(b))
+  return [...tagSet].sort((a, b) => a.localeCompare(b))
 }
 
 /**

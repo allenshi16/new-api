@@ -33,7 +33,7 @@ import {
   getDynamicDisplayGroupRatio,
   getDynamicPricingSummary,
 } from '../lib/dynamic-price'
-import { parseTags } from '../lib/filters'
+import { isNewArrivalTag, parseTags } from '../lib/filters'
 import { isTokenBasedModel } from '../lib/model-helpers'
 import {
   formatPrice,
@@ -355,9 +355,15 @@ export function usePricingColumns(
               <StatusBadge
                 key={tag}
                 label={tag}
-                autoColor={tag}
                 size='sm'
                 copyable={false}
+                variant={isNewArrivalTag(tag) ? 'success' : null}
+                autoColor={isNewArrivalTag(tag) ? undefined : tag}
+                className={
+                  isNewArrivalTag(tag)
+                    ? 'bg-success font-semibold text-success-foreground'
+                    : undefined
+                }
               />
             ))}
           />
