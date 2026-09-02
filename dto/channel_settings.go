@@ -115,6 +115,20 @@ const (
 // AdvancedCustomModelListPath identifies the optional OpenAI Models discovery route.
 const AdvancedCustomModelListPath = "/v1/models"
 
+// playground chat-completions endpoint prefix. The playground relays as OpenAI
+// chat completions but is served under /pg/chat/completions.
+const advancedCustomPlaygroundChatPrefix = "/pg/chat/completions"
+
+// normalizeRequestPath maps the playground chat-completions endpoint to its
+// canonical /v1/chat/completions path so route matching is consistent across
+// distributor selection, affinity checks, and the relay adaptor.
+func normalizeRequestPath(requestPath string) string {
+	if strings.HasPrefix(requestPath, advancedCustomPlaygroundChatPrefix) {
+		return advancedCustomEndpointPathOpenAIChat
+	}
+	return requestPath
+}
+
 // MatchPath returns the first route whose IncomingPath matches requestPath.
 // Matching mirrors the relay adaptor: exact match, {model} placeholder, and
 // :generateContent <-> :streamGenerateContent equivalence.
@@ -122,6 +136,7 @@ func (c *AdvancedCustomConfig) MatchPath(requestPath string) (AdvancedCustomRout
 	if c == nil {
 		return AdvancedCustomRoute{}, false
 	}
+	requestPath = normalizeRequestPath(requestPath)
 	for _, route := range c.Routes {
 		if matchAdvancedCustomIncomingPath(strings.TrimSpace(route.IncomingPath), requestPath) {
 			return route, true
@@ -136,6 +151,7 @@ func (c *AdvancedCustomConfig) MatchPathForModel(requestPath string, model strin
 	if c == nil {
 		return AdvancedCustomRoute{}, false
 	}
+	requestPath = normalizeRequestPath(requestPath)
 	model = strings.TrimSpace(model)
 	for _, route := range c.Routes {
 		if matchAdvancedCustomIncomingPath(strings.TrimSpace(route.IncomingPath), requestPath) &&

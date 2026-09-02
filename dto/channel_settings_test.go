@@ -270,6 +270,35 @@ func TestAdvancedCustomMatchPathForModel(t *testing.T) {
 	assert.Equal(t, advancedCustomConverterNone, fallbackRoute.Converter)
 }
 
+func TestAdvancedCustomMatchPathForModelPlayground(t *testing.T) {
+	config := &AdvancedCustomConfig{
+		Routes: []AdvancedCustomRoute{
+			{
+				IncomingPath: "/v1/chat/completions",
+				UpstreamPath: "/v1/chat/completions",
+				Converter:    advancedCustomConverterNone,
+				Models:       []string{"z-ai/glm-5.3-flash"},
+			},
+		},
+	}
+	require.NoError(t, config.Validate())
+
+	route, ok := config.MatchPathForModel("/pg/chat/completions", "z-ai/glm-5.3-flash")
+	require.True(t, ok)
+	assert.Equal(t, "/v1/chat/completions", route.IncomingPath)
+
+	route, ok = config.MatchPathForModel("/v1/chat/completions", "z-ai/glm-5.3-flash")
+	require.True(t, ok)
+	assert.Equal(t, "/v1/chat/completions", route.IncomingPath)
+
+	_, ok = config.MatchPathForModel("/v1/responses", "z-ai/glm-5.3-flash")
+	assert.False(t, ok)
+
+	playgroundPath, ok := config.MatchPath("/pg/chat/completions")
+	require.True(t, ok)
+	assert.Equal(t, "/v1/chat/completions", playgroundPath.IncomingPath)
+}
+
 func TestAdvancedCustomMatchPathForModelRegexRules(t *testing.T) {
 	config := &AdvancedCustomConfig{
 		Routes: []AdvancedCustomRoute{
